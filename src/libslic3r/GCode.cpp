@@ -4691,6 +4691,11 @@ std::string GCode::extrude_loop(ExtrusionLoop loop, std::string description, dou
         }
     }
 
+    // if brick layering active, offset z position by half of layer height for all odd depth loops
+    bool brick_apply_z_offset = m_config.brick_layering && (loop.depth() % 2 == 1);
+    const double brick_z_offset = brick_apply_z_offset ? m_config.layer_height * 0.5 : 0.0;
+    const double brick_extrusion_multiplier = this->on_first_layer() || this->object_layer_over_raft() ? 1.2 : m_config.brick_layering_extrusion_multiplier;
+
 
     const auto speed_for_path = [&speed, &small_peri_speed](const ExtrusionPath& path) {
         // don't apply small perimeter setting for overhangs/bridges/non-perimeters
@@ -4717,8 +4722,15 @@ std::string GCode::extrude_loop(ExtrusionLoop loop, std::string description, dou
     // Orca: end of multipath average mm3_per_mm value calculation
     
     if (!enable_seam_slope) {
+        if (brick_apply_z_offset) {
+            for (auto &p : paths) {
+                p.mm3_per_mm *= brick_extrusion_multiplier;
+                p.width *= brick_extrusion_multiplier;
+                p.height *= brick_extrusion_multiplier;
+            }
+        }
         for (ExtrusionPaths::iterator path = paths.begin(); path != paths.end(); ++path) {
-            gcode += this->_extrude(*path, description, speed_for_path(*path));
+            gcode += this->_extrude(*path, description, speed_for_path(*path), brick_z_offset);
             // Orca: Adaptive PA - dont adapt PA after the first pultipath extrusion is completed
             // as we have already set the PA value to the average flow over the totality of the path
             // in the first extrude move
@@ -4752,9 +4764,18 @@ std::string GCode::extrude_loop(ExtrusionLoop loop, std::string description, dou
         ExtrusionLoopSloped new_loop(paths, seam_gap, slope_min_length, slope_max_segment_length, start_slope_ratio, loop.loop_role());
         new_loop.clip_slope(seam_gap);
 
+        // Adjust extrusion for z offset
+        if (brick_apply_z_offset) {
+            for (auto &p : new_loop.paths) {
+                p.mm3_per_mm *= brick_extrusion_multiplier;
+                p.width *= brick_extrusion_multiplier;
+                p.height *= brick_extrusion_multiplier;
+            }
+        }
+
         // Then extrude it
         for (const auto& p : new_loop.get_all_paths()) {
-            gcode += this->_extrude(*p, description, speed_for_path(*p));
+            gcode += this->_extrude(*p, description, speed_for_path(*p), brick_z_offset);
             // Orca: Adaptive PA - dont adapt PA after the first pultipath extrusion is completed
             // as we have already set the PA value to the average flow over the totality of the path
             // in the first extrude move
@@ -5090,7 +5111,7 @@ double GCode::get_overhang_degree_corr_speed(float normal_speed, double path_deg
     return speed_out;
 }
 
-std::string GCode::_extrude(const ExtrusionPath &path, std::string description, double speed)
+std::string GCode::_extrude(const ExtrusionPath &path, std::string description, double speed, double z_offset)
 {
     std::string gcode;
 
@@ -5358,6 +5379,12 @@ std::string GCode::_extrude(const ExtrusionPath &path, std::string description, 
             }
             variable_speed = std::any_of(new_points.begin(), new_points.end(),
                                          [speed](const ProcessedPoint &p) { return fabs(double(p.speed) - speed) > 1; }); // Ignore small speed variations (under 1mm/sec)
+    }
+
+    // brick layering z-offset
+    const Vec3d start_pos = m_writer.get_position();
+    if (z_offset > 0.0) {
+        gcode += m_writer.travel_to_z(start_pos.z() + z_offset, "vertical brick layering z-offset start");
     }
 
     double F = speed * 60;  // convert mm/sec to mm/min
@@ -5854,6 +5881,10 @@ std::string GCode::_extrude(const ExtrusionPath &path, std::string description, 
 
     if (path.role() != ExtrusionRole::erGapFill) {
       m_last_notgapfill_extrusion_role = path.role();
+    }
+
+    if (z_offset > 0.0) {
+        gcode += m_writer.travel_to_z(start_pos.z(), "vertical brick layering z-offset end");
     }
 
     this->set_last_pos(path.last_point());

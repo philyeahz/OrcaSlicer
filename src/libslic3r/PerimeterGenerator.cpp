@@ -752,7 +752,7 @@ static ExtrusionEntityCollection traverse_loops(const PerimeterGenerator &perime
             paths.emplace_back(std::move(path));
         }
 
-        coll.append(ExtrusionLoop(std::move(paths), loop_role));
+        coll.append(ExtrusionLoop(std::move(paths), loop_role, loop.depth));
     }
     
     // Append thin walls to the nearest-neighbor search (only for first iteration)
@@ -2307,6 +2307,31 @@ void PerimeterGenerator::process_classic()
                             break;
                         // go to the next perimeter from the current position to continue scanning for external walls in the same island
                         position = arr_i + 1;
+                    }
+                }
+            } else if (this->config->wall_sequence == WallSequence::EvenOdd ||
+                this->config->wall_sequence == WallSequence::OddEven) {
+                if (entities.entities.size() > 1){
+                    ExtrusionEntitiesPtr entities_even;
+                    ExtrusionEntitiesPtr entities_odd;
+                    for (int entity_idx = 0; entity_idx < entities.entities.size(); ++entity_idx) {
+                        ExtrusionLoop *eloop = static_cast<ExtrusionLoop *>(entities.entities[entity_idx]);
+                        if (eloop->depth() % 2 == 0) {
+                            entities_even.push_back(entities.entities[entity_idx]);
+                        } else {
+                            entities_odd.push_back(entities.entities[entity_idx]);
+                        }
+                    }
+                    if (this->config->wall_sequence == WallSequence::EvenOdd) {
+                        for (auto& entity : entities_odd) {
+                            entities_even.push_back(entity);
+                        }
+                        entities.entities = std::move(entities_even);
+                    } else if (this->config->wall_sequence == WallSequence::EvenOdd) {
+                        for (auto& entity : entities_even) {
+                            entities_odd.push_back(entity);
+                        }
+                        entities.entities = std::move(entities_odd);
                     }
                 }
             }

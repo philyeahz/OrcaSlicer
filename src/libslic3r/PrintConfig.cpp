@@ -171,7 +171,9 @@ CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WallInfillOrder)
 static t_config_enum_values s_keys_map_WallSequence {
     { "inner wall/outer wall",     int(WallSequence::InnerOuter) },
     { "outer wall/inner wall",     int(WallSequence::OuterInner) },
-    { "inner-outer-inner wall",    int(WallSequence::InnerOuterInner)}
+    { "inner-outer-inner wall",    int(WallSequence::InnerOuterInner)},
+    { "even-odd wall",             int(WallSequence::EvenOdd)},
+    { "odd-even wall",             int(WallSequence::OddEven)}
 
 };
 CONFIG_OPTION_ENUM_DEFINE_STATIC_MAPS(WallSequence)
@@ -1596,9 +1598,13 @@ void PrintConfigDef::init_fff_params()
     def->enum_values.push_back("inner wall/outer wall");
     def->enum_values.push_back("outer wall/inner wall");
     def->enum_values.push_back("inner-outer-inner wall");
+    def->enum_values.push_back("even-odd wall");
+    def->enum_values.push_back("odd-even wall");
     def->enum_labels.push_back(L("Inner/Outer"));
     def->enum_labels.push_back(L("Outer/Inner"));
     def->enum_labels.push_back(L("Inner/Outer/Inner"));
+    def->enum_labels.push_back(L("even wall/odd wall"));
+    def->enum_labels.push_back(L("odd wall/even wall"));
     def->mode = comAdvanced;
     def->set_default_value(new ConfigOptionEnum<WallSequence>(WallSequence::InnerOuter));
 
@@ -2631,6 +2637,22 @@ void PrintConfigDef::init_fff_params()
     def->tooltip = L("Whether to apply fuzzy skin on the first layer");
     def->mode = comSimple;
     def->set_default_value(new ConfigOptionBool(0));
+
+    def = this->add("brick_layering", coBool);
+    def->label = L("Brick Layering");
+    def->category = L("Others");
+    def->tooltip = L("Brick layering for perimeters");
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionBool(false));
+
+    def = this->add("brick_layering_extrusion_multiplier", coFloat);
+    def->label = L("Brick Layering Extrusion Multiplier");
+    def->category = L("Others");
+    def->tooltip = L("Brick layering z-offset perimeter extrusion multiplier");
+    def->min = 0;
+    def->max = 5;
+    def->mode = comAdvanced;
+    def->set_default_value(new ConfigOptionFloat(1.1f));
 
     def = this->add("filter_out_gap_fill", coFloat);
     def->label = L("Filter out tiny gaps");

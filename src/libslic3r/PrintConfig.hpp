@@ -79,6 +79,8 @@ enum class WallSequence {
     InnerOuter,
     OuterInner,
     InnerOuterInner,
+    EvenOdd,
+    OddEven,
     Count,
 };
 
@@ -1012,7 +1014,9 @@ PRINT_CONFIG_CLASS_DEFINE(
     ((ConfigOptionFloat,                scarf_joint_flow_ratio))
     ((ConfigOptionPercent,              scarf_overhang_threshold))
 
-
+    // Brick layering
+    ((ConfigOptionBool, brick_layering))
+    ((ConfigOptionFloat, brick_layering_extrusion_multiplier))
 )
 
 PRINT_CONFIG_CLASS_DEFINE(
