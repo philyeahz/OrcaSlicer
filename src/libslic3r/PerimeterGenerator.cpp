@@ -587,7 +587,7 @@ static ExtrusionEntityCollection traverse_loops(const PerimeterGenerator &perime
         if (loop.depth == 0 && layer_divider > 1) {
             // set z-offset and apply perimeter divider to extrusion rate and layer height
             layer_height /= layer_divider;
-            extrusion_mm3_per_mm *= 1.0f / layer_divider;
+            extrusion_mm3_per_mm = perimeter_generator.sub_slice_mm3_per_mm();
             z_offset = loop.z_offset;
 
             // select lower polygon series from sub slices
@@ -1967,6 +1967,9 @@ void PerimeterGenerator::process_classic()
     // external perimeters
     m_ext_mm3_per_mm           		= this->ext_perimeter_flow.mm3_per_mm();
     coord_t ext_perimeter_width     = this->ext_perimeter_flow.scaled_width();
+
+    // subslice perimeters
+    m_mm3_per_mm_sub_slice          = this->sub_slice_flow.mm3_per_mm();
 
     coord_t ext_perimeter_spacing   = this->ext_perimeter_flow.scaled_spacing();
     coord_t ext_perimeter_spacing2;
