@@ -4021,7 +4021,7 @@ LayerResult GCode::process_layer(
                         bool skip_test = false;
                         if (entity_type == ObjectByExtruder::Island::Region::PERIMETERS) {
                             const int perimeter_divider = config().outer_perimeter_layer_divider;
-                            if (perimeter_divider > 1 && entity_idx == (entities.size() - perimeter_divider + 1)) {
+                            if (perimeter_divider > 1 && entity_idx >= (entities.size() - perimeter_divider + 1)) {
                                 skip_test = true;
                             }
                         }
