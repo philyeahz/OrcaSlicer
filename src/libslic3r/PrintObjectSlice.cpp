@@ -837,6 +837,10 @@ void PrintObject::slice()
                     for (const ExPolygon& expoly : layer.lsub_slices.back().second)
                         layer.lsub_slices_bboxes.emplace_back(get_extents(expoly));
                 }
+                layer.lsub_slices_merged_bboxes.clear();
+                layer.lsub_slices_merged_bboxes.reserve(layer.lsub_slices_merged.size());
+                for (const ExPolygon &expoly : layer.lsub_slices_merged)
+                	layer.lsub_slices_merged_bboxes.emplace_back(get_extents(expoly));
                 layer.backup_untyped_slices();
             }
         });

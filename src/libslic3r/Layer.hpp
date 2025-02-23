@@ -158,6 +158,8 @@ public:
 
     SubSliceCollection lsub_slices;
     std::vector<BoundingBox> lsub_slices_bboxes;
+    ExPolygons lsub_slices_merged;
+    std::vector<BoundingBox> lsub_slices_merged_bboxes;
 
     // BBS
     ExPolygons              loverhangs;

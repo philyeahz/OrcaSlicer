@@ -37,71 +37,93 @@ LayerRegion* Layer::add_region(const PrintRegion *print_region)
 // merge all regions' slices to get islands
 void Layer::make_slices()
 {
-    ExPolygons slices;
-    if (m_regions.size() == 1) {
-        // optimization: if we only have one region, take its slices
-        slices = to_expolygons(m_regions.front()->slices.surfaces);
-    } else {
-        Polygons slices_p;
-        for (LayerRegion *layerm : m_regions)
-            polygons_append(slices_p, to_polygons(layerm->slices.surfaces));
-        slices = union_safety_offset_ex(slices_p);
-    }
-    
-    this->lslices.clear();
-    this->lslices.reserve(slices.size());
-    
-    // prepare ordering points
-    Points ordering_points;
-    ordering_points.reserve(slices.size());
-    for (const ExPolygon &ex : slices)
-        ordering_points.push_back(ex.contour.first_point());
-    
-    // sort slices
-    std::vector<Points::size_type> order = chain_points(ordering_points);
-    
-    // populate slices vector
-    for (size_t i : order)
-        this->lslices.emplace_back(std::move(slices[i]));
-    
-    // sub slices
-    std::vector<std::pair<float, ExPolygons>> sub_slices;
-    if (m_regions.size() == 1) {
-        // optimization: if we only have one region, take its slices
-        for (auto& [z, s] : m_regions.front()->sub_slices) {
-            sub_slices.emplace_back(z, s);
+    {
+        ExPolygons slices;
+        if (m_regions.size() == 1) {
+            // optimization: if we only have one region, take its slices
+            slices = to_expolygons(m_regions.front()->slices.surfaces);
+        } else {
+            Polygons slices_p;
+            for (LayerRegion *layerm : m_regions)
+                polygons_append(slices_p, to_polygons(layerm->slices.surfaces));
+            slices = union_safety_offset_ex(slices_p);
         }
-    } else {
-        std::map<float, Polygons> slices_p;
-        for (LayerRegion* layerm : m_regions)
-            for (auto& [z, s] : layerm->sub_slices) {
-                auto it = slices_p.find(z);
-                if (it != slices_p.end()) {
-                    polygons_append(it->second, to_polygons(s));
-                } else {
-                    slices_p.emplace(z, to_polygons(s));
-                }
-            }
-        for (auto& [z, p] : slices_p) {
-            sub_slices.emplace_back(z, union_safety_offset_ex(p));
-        }
-    }
-    this->lsub_slices.clear();
-    for (auto& [z, s] : sub_slices) {
+        
+        this->lslices.clear();
+        this->lslices.reserve(slices.size());
+        
         // prepare ordering points
         Points ordering_points;
-        ordering_points.reserve(s.size());
-        for (const ExPolygon& ex : s)
+        ordering_points.reserve(slices.size());
+        for (const ExPolygon &ex : slices)
             ordering_points.push_back(ex.contour.first_point());
-
+        
         // sort slices
         std::vector<Points::size_type> order = chain_points(ordering_points);
-
+        
         // populate slices vector
-        ExPolygons final_slices;
         for (size_t i : order)
+            this->lslices.emplace_back(std::move(slices[i]));
+    }
+    
+    // sub slices
+    {
+        std::vector<std::pair<float, ExPolygons>> sub_slices;
+        ExPolygons sub_slices_merged;
+        if (m_regions.size() == 1) {
+            // optimization: if we only have one region, take its slices
+            for (auto& [z, s] : m_regions.front()->sub_slices) {
+                sub_slices.emplace_back(z, s);
+                sub_slices_merged = union_ex(sub_slices_merged, s);
+            }
+        } else {
+            std::map<float, Polygons> slices_p;
+            for (LayerRegion* layerm : m_regions)
+                for (auto& [z, s] : layerm->sub_slices) {
+                    auto it = slices_p.find(z);
+                    if (it != slices_p.end()) {
+                        polygons_append(it->second, to_polygons(s));
+                    } else {
+                        slices_p.emplace(z, to_polygons(s));
+                    }
+                }
+            for (auto& [z, p] : slices_p) {
+                ExPolygons tmp = union_safety_offset_ex(p);
+                sub_slices.emplace_back(z, tmp);
+                sub_slices_merged = union_ex(sub_slices_merged, tmp);
+                
+            }
+        }
+        this->lsub_slices.clear();
+        for (auto& [z, s] : sub_slices) {
+            // prepare ordering points
+            Points ordering_points;
+            ordering_points.reserve(s.size());
+            for (const ExPolygon& ex : s)
+            ordering_points.push_back(ex.contour.first_point());
+            
+            // sort slices
+            std::vector<Points::size_type> order = chain_points(ordering_points);
+            
+            // populate slices vector
+            ExPolygons final_slices;
+            for (size_t i : order)
             final_slices.emplace_back(std::move(s[i]));
-        this->lsub_slices.emplace_back(z, final_slices);
+            this->lsub_slices.emplace_back(z, final_slices);
+        }
+    
+        this->lsub_slices_merged.clear();
+        Points ordering_points;
+        ordering_points.reserve(sub_slices_merged.size());
+        for (const ExPolygon &ex : sub_slices_merged)
+            ordering_points.push_back(ex.contour.first_point());
+        
+        // sort slices
+        std::vector<Points::size_type> order = chain_points(ordering_points);
+        
+        // populate slices vector
+        for (size_t i : order)
+            this->lsub_slices_merged.emplace_back(std::move(sub_slices_merged[i]));
     }
 }
 
