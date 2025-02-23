@@ -96,6 +96,7 @@ public:
     std::pair<double, double>   m_smaller_external_overhang_dist_boundary;
 
     std::map<int, std::vector<Polygons>> m_lower_sub_polygons_series;
+    std::map<int, Polygons> m_lower_sub_polygons;
 
     bool                                            has_fuzzy_skin = false;
     bool                                            has_fuzzy_hole = false;
